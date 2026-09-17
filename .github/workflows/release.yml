@@ -27,9 +27,11 @@ jobs:
             echo "tag_name=${{ github.ref_name }}" >> $GITHUB_OUTPUT
           fi
 
+      # dispatch 模式下 checkout 触发分支（main）：旧 tag（如 v0.1.0）可能尚无 worker/ 目录，
+      # Worker 文件独立于 Go 库版本演进；tag push 模式照常从 tag 检出
       - uses: actions/checkout@v4
         with:
-          ref: ${{ steps.ref.outputs.checkout_ref }}
+          ref: ${{ (github.event_name == 'workflow_dispatch' && github.ref) || steps.ref.outputs.checkout_ref }}
           fetch-depth: 0
 
       - name: Package worker
