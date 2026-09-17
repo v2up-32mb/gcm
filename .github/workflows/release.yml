@@ -41,7 +41,6 @@ jobs:
         run: |
           mkdir -p dist
           cp worker/worker.js dist/worker.js
-          cp worker/wrangler.toml dist/wrangler.toml
           cp worker/DEPLOY.md dist/DEPLOY.md
           # 校验 worker.js 非空且语法可解析（node 自检）
           node --check dist/worker.js
@@ -64,9 +63,10 @@ jobs:
             echo ""
             echo "| 文件 | 说明 |"
             echo "|---|---|"
-            echo "| \`worker.js\` | Cloudflare Worker 主脚本（\`node --check\` 已校验） |"
-            echo "| \`wrangler.toml\` | Wrangler 部署配置（\`[vars]\` 含 \`USER_ID\`/\`FALLBACK_IPS\` 等） |"
-            echo "| \`DEPLOY.md\` | 部署与配置说明 |"
+            echo "| \`worker.js\` | Cloudflare Worker 主脚本（\`node --check\` 已校验，头部注释含协议与接入说明） |"
+            echo "| \`DEPLOY.md\` | 部署方式（Dashboard 粘贴 / Wrangler）与环境变量表 |"
+            echo ""
+            echo "部署配置（\`wrangler.toml\`、域名与账号）不随库发布，按 \`DEPLOY.md\` 自行准备。"
             echo ""
             echo "部署：\`wrangler deploy\`（详见 \`DEPLOY.md\`）。"
             echo ""
@@ -86,5 +86,4 @@ jobs:
           prerelease: ${{ env.IS_PRERELEASE }}
           files: |
             dist/worker.js
-            dist/wrangler.toml
             dist/DEPLOY.md
