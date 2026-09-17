@@ -142,7 +142,8 @@ func TestStreamDialerConnectRoundTrip(t *testing.T) {
 	p, _ := newTestPool(t)
 	d := NewStreamDialer(p)
 
-	stream, err := d.DialStream(context.Background(), "example.com:443")
+	// IPv6 目标回归（xshared 终审 B1 同源）：目标必须是合法 host:port
+	stream, err := d.DialStream(context.Background(), "[2001:db8::1]:443")
 	if err != nil {
 		t.Fatalf("DialStream: %v", err)
 	}
