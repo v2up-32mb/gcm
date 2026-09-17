@@ -99,7 +99,8 @@ func newFakeWorker(t *testing.T) (*httptest.Server, *fakeWorkerCtrl) {
 					return
 				}
 			case protocol.MsgTypeClose:
-				return
+				// 只关流不关连接：CLOSE 后同一 WS 上仍可能有其他多路复用流
+				continue
 			}
 		}
 	}))
