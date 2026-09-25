@@ -6,13 +6,20 @@
 
 ## 未发版（main HEAD，待人工批准打 tag）
 
-**Changed / Build**
+**Changed / Removed**
 
+- **Worker 服务端移出本仓，独立建仓** [`gcm-worker`](https://github.com/v2up-32mb/gcm-worker)：
+  `worker/worker.js` + `worker/DEPLOY.md` 迁出（git 历史经 `git subtree split` 保留），
+  本仓 release 不再打包 Worker 产物（`.github/workflows/release.yml` 一并删除，Go 库无需发布附件）。
+  本仓 `protocol/` 为消息类型/头格式的权威定义，`gcm-worker` CI 用 `npm run check:protocol` 与之比对。
+  文档同步：README/AGENTS 指向新仓。
 - 依赖升级 `github.com/v2up-32mb/xshared v0.1.0 → v0.1.1`（纯新增：`socks5.ParseSocks5Auth/AuthEqual`、
   `ech.NewEchManagerFromDoH`、`pipe` 包；无破坏性）。协议层无代码改动，依赖一致性升级。
 - 新增 `AGENTS.md`（分层约束 + 发版铁律）与 `CHANGELOG.md` 三件套。
 
-**升级指引**：消费方无动作；后续发版时随 tag 生效。
+**升级指引**：消费方（gcm-cli / x-client）Go 侧无任何改动，无需调整代码；
+仅需把 Worker 部署产物的获取地址从本仓 release 改为
+[`gcm-worker`](https://github.com/v2up-32mb/gcm-worker) release。
 
 ---
 

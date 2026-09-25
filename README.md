@@ -17,7 +17,8 @@ TYPE = 2 DATA       [binary_data]
 TYPE = 3 CLOSE      无 DATA
 ```
 
-客户端接入：`wss://<worker域名>/<user_id>?fallbackip=<出口IP列表>`（Worker 服务端见 `worker/`）。
+客户端接入：`wss://<worker域名>/<user_id>?fallbackip=<出口IP列表>`
+（Worker 服务端已独立建仓：[`gcm-worker`](https://github.com/v2up-32mb/gcm-worker)）。
 
 ## 包布局
 
@@ -34,7 +35,10 @@ TYPE = 3 CLOSE      无 DATA
 
 ## Worker 服务端
 
-Cloudflare Worker 实现位于 [`worker/`](worker/)，随各版本 release 发布（`worker.js` + `DEPLOY.md`）。
+服务端（`worker.js` + 部署说明）已独立建仓：
+[`gcm-worker`](https://github.com/v2up-32mb/gcm-worker)（Cloudflare Worker 实现，随其 release 发布）。
+本仓 `protocol/` 是消息类型/头格式的**权威定义**；`gcm-worker` 以 `npm run check:protocol`
+在 CI 中与本仓比对，防两侧协议漂移。
 
 ## 测试
 

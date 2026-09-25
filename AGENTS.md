@@ -14,9 +14,11 @@
 ```
 xshared(能力层: config/dialer/logger/ech/dns/socks5/pipe)
    ▲
-gcm(协议核心: 2字节头多路复用, pool/protocol/relay/worker)
+gcm(协议核心: 2字节头多路复用, pool/protocol/relay)
    ▲
 gcm-cli(壳) / x-client golib(壳)
+
+gcm ⇄ gcm-worker（服务端对端：Cloudflare Worker 实现，独立仓，协议常量与本仓 protocol/ 对齐）
 ```
 
 ## 硬性约束（不得违反）
@@ -30,7 +32,11 @@ gcm-cli(壳) / x-client golib(壳)
    submodule/vendoring；升级依赖后 `go build/vet/test` 全绿再提交。
 4. **行为改动不得悄悄发生**：竞速/选路/重试这类影响下游行为的变更，一律进 `CHANGELOG.md`
    "升级指引"，标注是否破坏性。
-5. **发版铁律（最高优先级）**：**绝不未经人工确认就自行打 tag 并推送**。
+5. **协议权威定义在本仓**：`protocol/message.go` 是 GCM 消息类型/头格式的唯一定义处。
+   服务端（Cloudflare Worker）在独立仓 [`gcm-worker`](https://github.com/v2up-32mb/gcm-worker) 开发，
+   其 CI 以 `npm run check:protocol` 与本仓比对；改协议前先给出 gcm-worker + 客户端
+   （gcm-cli / x-client）的同步方案，并记入双方 `CHANGELOG.md`。
+6. **发版铁律（最高优先级）**：**绝不未经人工确认就自行打 tag 并推送**。
    任何发版动作（打 tag、`push --tags`、创建 release）必须先向用户明确汇报版本号与发布内容并获得批准；
    提交/推送日常分支不在此限。
 
@@ -49,7 +55,6 @@ gcm-cli(壳) / x-client golib(壳)
 | `protocol/` | 2 字节头帧编解码、消息类型 |
 | `pool/` | 多路复用连接池、流管理、质量监控、ECH 降级、连接恢复 |
 | `relay/` | 中继节点管理、测速 |
-| `worker/` | Worker 侧接入（Cloudflare Worker 部署） |
 | `socks5dialer.go` | 池 → 流拨号适配（DialStream） |
 
 ## 测试
