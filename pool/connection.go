@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	neturl "net/url"
 	"sort"
 	"strings"
 	"sync"
@@ -432,11 +433,23 @@ func (p *ConnectionPool) Warmup() error {
 	return nil
 }
 
-// buildWSSURL 构建 WebSocket 连接 URL（包含 proxyIP 参数）
+// buildWSSURL 构建 WebSocket 连接 URL（包含出口偏好 query 参数）
+// 出口参数（?fallbackip= / ?proxy-all=）是 gcm-worker 的对外契约，只认这两个名字；
+// Worker 侧对未知 query 参数宽容，带过去不会报错。
 func (p *ConnectionPool) buildWSSURL() string {
 	url := fmt.Sprintf("wss://%s/%s", p.cfg.WorkerHost, p.cfg.UserID)
+	var q []string
+	// 出口条目可能含 [ipv6] 方括号、空格等在 query 里不安全的字符，必须转义；
+	// Worker 侧 searchParams 会解码回来，值语义不变。
 	if p.cfg.ProxyIP != "" {
-		url += "?fallbackip=" + p.cfg.ProxyIP
+		q = append(q, "fallbackip="+neturl.QueryEscape(p.cfg.ProxyIP))
+	}
+	// 强制走回退出口：Worker 跳过直连，直接从 ?fallbackip= 起步
+	if p.cfg.ProxyAll {
+		q = append(q, "proxy-all=true")
+	}
+	if len(q) > 0 {
+		url += "?" + strings.Join(q, "&")
 	}
 	return url
 }
@@ -877,7 +890,9 @@ func (p *ConnectionPool) createConnectionWithRelay(relay *relay.RelayNode, reaso
 	atomic.AddInt64(&p.stats.CreatedConnections, 1)
 
 	// 使用指定的中转节点
-	url := fmt.Sprintf("wss://%s/%s", p.cfg.WorkerHost, p.cfg.UserID)
+	// 出口参数（?fallbackip= / ?proxy-all=）必须走 buildWSSURL：
+	// 本函数原先内联拼 URL，漏掉了出口参数（--proxy-ip 在这条路径上会静默失效）
+	url := p.buildWSSURL()
 	customDial := func(network, addr string) (net.Conn, error) {
 		return net.DialTimeout(network, net.JoinHostPort(relay.IP, fmt.Sprintf("%d", relay.Port)), p.cfg.GetConnectionTimeout())
 	}
