@@ -23,9 +23,13 @@
 
 **Fixed**
 
-- **`createConnectionWithRelay` 漏带出口参数**（死代码，但埋雷）：该函数原先内联拼
-  `wss://host/uid`，**漏掉 `?fallbackip=`**——一旦被启用，`--proxy-ip` 就会静默失效。
-  现改为复用 `buildWSSURL()`，与另外两条建连路径（`createConnectionSync` / `createConnection`）对齐。
+- **`createConnectionWithRelay` 漏带出口参数**：该函数原先内联拼 `wss://host/uid`，**漏掉**
+  `?fallbackip=`。它是**活跃路径**——节点切换时 `quality_monitor.go` 借它预热连接，
+  所以中转模式下经预热建立的连接**一直**静默丢失 `--proxy-ip`（与本版新增的 `--proxy-all`
+  同理丢失）。现改为复用 `buildWSSURL()`，与另外两条建连路径（`createConnectionSync` /
+  `createConnection`）对齐。
+  > 勘误：初始发布说明将其误标为「死代码，但埋雷」——当时只 grep 了 connection.go、
+  > 没看全仓。该函数有真实调用（节点切换预热），不是死代码；本次修复是实修而非防患。
 - **`?fallbackip=` 值未转义**：原先直接拼原始字符串，`[2606:4700::1]:8443` 这类含方括号、
   或含空格/`#`/`&` 的出口条目会在 query 里被截断成半个，Worker 收到残缺地址。
   现用 `url.QueryEscape` 转义（Worker 侧 `searchParams` 解码回来值语义不变）。新增单测。
