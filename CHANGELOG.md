@@ -4,6 +4,19 @@
 
 ---
 
+## 未发版（待批准打 tag；纯文档，随下个版本发布）
+
+**勘误 / 语义同步**
+
+- **`?proxy-all=true` 的服务端语义已在 gcm-worker v0.1.3 演进为「只用 socks5 出口」**：
+  Worker 不再「跳过直连仍走 L4 回退链」，而是把 `?fallbackip=` 当 **socks5 服务器配置**
+  （`[socks5h?://][user:pass@]host[:port]`，缺端口 1080）并做 SOCKS5 握手。
+  本仓 `buildWSSURL` 的 URL 结构不变（`?fallbackip=` + `?proxy-all=true`），Go 侧**无需改代码**；
+  但 proxy-all 用户的 `--proxy-ip` 值需改为真实 socks5 配置（含 v0.1.2 下用 L4 覆盖项的部署）。
+  xshared main 的 `Config.ProxyIP` 注释已同步（随其下个 tag 发布）。协议层（`protocol/`）无改动。
+
+---
+
 ## v0.1.2 — 2026-09-29
 
 **Build**
