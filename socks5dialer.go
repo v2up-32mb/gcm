@@ -134,9 +134,9 @@ func (d *StreamDialer) DialStream(ctx context.Context, target string) (net.Conn,
 		OnClose: func() { sc.Close() },
 	}
 
-	// 先注册再发 CONNECT，保证 CONNECTED 不会丢失（基线行为）
+	// 先标记注册再发 CONNECT，保证 CONNECTED 不会丢失（基线行为）
+	sc.handlerRegistered.Store(true)
 	d.pool.RegisterStreamHandler(connItem, streamID, handler, target)
-	sc.handlerRegistered = true
 
 	connectMsg := protocol.NewConnectMessage(streamID, host, port)
 	if err := connItem.WriteMessage(websocket.BinaryMessage, connectMsg.Encode()); err != nil {
@@ -174,7 +174,7 @@ type gcmStreamConn struct {
 
 	closeOnce         sync.Once
 	closedCh          chan struct{}
-	handlerRegistered bool
+	handlerRegistered atomic.Bool
 
 	sent           atomic.Int64
 	received       atomic.Int64
@@ -232,7 +232,7 @@ func (c *gcmStreamConn) Close() error {
 				logger.GetLogger("StreamDialer").Debug("发送 CLOSE 消息失败: %v", err)
 			}
 		}
-		if c.handlerRegistered {
+		if c.handlerRegistered.Load() {
 			if _, _ = c.pool.UnregisterStreamHandler(c.connItem, c.streamID); true {
 			}
 			c.pool.ReleaseConnection(c.connItem)

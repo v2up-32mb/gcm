@@ -669,6 +669,12 @@ func (p *ConnectionPool) createConnectionSync(reason string) bool {
 	// 初始化 StreamManager（messageLoop 需要它来分发消息）
 	// 所有连接都必须在 managerByConn 中，无论是否有活跃的 stream
 	p.mu.Lock()
+	if p.managerByConn == nil {
+		p.mu.Unlock()
+		item.closed.Store(true)
+		_ = ws.Close()
+		return false
+	}
 	p.managerByConn[item] = NewStreamManager(
 		item,
 		int(p.cfg.MaxStreamsPerConnection),
@@ -849,6 +855,12 @@ func (p *ConnectionPool) createConnection(reason string) bool {
 
 	// 初始化 StreamManager（确保 messageLoop 能立即分发消息）
 	p.mu.Lock()
+	if p.managerByConn == nil {
+		p.mu.Unlock()
+		item.closed.Store(true)
+		_ = ws.Close()
+		return false
+	}
 	p.managerByConn[item] = NewStreamManager(
 		item,
 		int(p.cfg.MaxStreamsPerConnection),
@@ -991,6 +1003,12 @@ func (p *ConnectionPool) createConnectionWithRelay(relay *relay.RelayNode, reaso
 
 	// 初始化 StreamManager
 	p.mu.Lock()
+	if p.managerByConn == nil {
+		p.mu.Unlock()
+		item.closed.Store(true)
+		_ = ws.Close()
+		return false
+	}
 	p.managerByConn[item] = NewStreamManager(
 		item,
 		int(p.cfg.MaxStreamsPerConnection),
@@ -1265,21 +1283,19 @@ func (p *ConnectionPool) GetConnectionWithStream(ctx context.Context, targetAddr
 		// 4. 所有连接都满载，需要创建新连接
 		currentSize := p.liveConnectionCountLocked() + pendingCount
 
-		if currentSize >= p.cfg.MaxPoolSize {
+		if currentSize < p.cfg.MaxPoolSize {
+			p.log.Debug("所有连接已满，触发新连接创建 (当前:%d/%d, 待创建:%d) -> %s",
+				currentSize, p.cfg.MaxPoolSize, pendingCount, targetAddr)
+			if pendingCount == 0 {
+				go p.createConnection("请求触发")
+			}
+		} else if pendingCount == 0 && retryCount >= 60 {
 			p.mu.Unlock()
 			p.log.Warn("所有连接已满载（%d/%d），无法满足请求 -> %s", currentSize, p.cfg.MaxPoolSize, targetAddr)
 			return nil, 0, fmt.Errorf("所有连接已满载（%d/%d）", currentSize, p.cfg.MaxPoolSize)
 		}
 
-		p.log.Debug("所有连接已满，触发新连接创建 (当前:%d/%d, 待创建:%d) -> %s",
-			currentSize, p.cfg.MaxPoolSize, pendingCount, targetAddr)
-
 		p.mu.Unlock()
-		// createConnection performs an atomic capacity reservation. Multiple
-		// requests may race here, but only available slots are allowed through.
-		if pendingCount == 0 {
-			go p.createConnection("请求触发")
-		}
 
 		retryCount++
 		// 等待新连接可用
@@ -1294,6 +1310,9 @@ func (p *ConnectionPool) GetConnectionWithStream(ctx context.Context, targetAddr
 
 		if !hasDeadline {
 			// 没有 deadline，最多重试一定次数
+			if retryCount >= 60 {
+				return nil, 0, fmt.Errorf("所有连接已满载（%d/%d）", currentSize, p.cfg.MaxPoolSize)
+			}
 			continue
 		}
 
